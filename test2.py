@@ -14,7 +14,7 @@ from cflib.utils import uri_helper
 import pos_estimator as es
 
 # URI to the Crazyflie to connect to
-uri = uri_helper.uri_from_env(default='radio://0/90/2M/E7E7E7E7E7')
+uri = uri_helper.uri_from_env(default='radio://0/40/2M/E7E7E7E7E7')
 
 # global data
 setpoint = [1.0, 0.5, 1.0, 0]
@@ -24,6 +24,11 @@ step = .1
 # Only output errors from the logging framework
 logging.basicConfig(level=logging.ERROR)
 
+# CALCULATE TRAJECTORY HERE
+# something something bogo path
+# given setpoint, return trajectory
+trajectory = [[1.0, 0.5, 1.0, 0], [0.0, 0.0, 1.0, 0.0]]
+
 if __name__ == '__main__':
     # Initialize the low-level drivers (don't list the debug drivers)
     cflib.crtp.init_drivers()
@@ -31,45 +36,54 @@ if __name__ == '__main__':
 
     with SyncCrazyflie(uri, cf=cf) as scf:
         es.reset(scf)
-        [x,y,z] = es.get_pose(scf)
-        cf.commander.send_position_setpoint(x, y, .5, 0)
-        time.sleep(1)
+        # [x,y,z] = es.get_pose(scf)
 
-        keep_flying = True
+        for next_point in trajectory:
+            print(next_point)
+            # es.reset(scf)
+            [x,y,z] = es.get_pose(scf)
 
-        while (keep_flying):
-            print("still flying")
-            VELOCITY = 0.2
-            vel_x = 0.0
-            vel_y = 0.0
-            vel_z=  0.0
+            cf.commander.send_position_setpoint(x, y, .5, 0)
+            time.sleep(1)
 
-            [x, y, z] = es.get_pose(scf)
-            x_err = setpoint[0] - x
-            y_err = setpoint[1] - y
-            z_err = setpoint[2] - z
+            keep_flying = True
 
-            err_mag = math.sqrt(pow(x_err, 2)+pow(y_err, 2)+pow(z_err, 2))
+            while (keep_flying):
+                print("still flying")
+                VELOCITY = 0.2
+                vel_x = 0.0
+                vel_y = 0.0
+                vel_z=  0.0
 
-            x_pos = x + (x_err > step) * x_err / err_mag * step + (x_err < step) * x_err
-            y_pos = y + (y_err > step) * y_err / err_mag * step + (y_err < step) * y_err
-            z_pos = z + (z_err > step) * z_err / err_mag * step + (z_err < step) * z_err
+                [x, y, z] = es.get_pose(scf)
 
-            vel_x = (x_err <= 0.5) * x_err + (x_err > 0.5) * VELOCITY
-            vel_y = (y_err <= 0.5) * y_err + (y_err > 0.5) * VELOCITY
-            vel_z = (z_err <= 0.5) * z_err + (z_err > 0.5) * VELOCITY
+                x_err = next_point[0] - x
+                y_err = next_point[1] - y
+                z_err = next_point[2] - z
 
-            keep_flying = (x_err >= err_threshold or 
-                y_err >= err_threshold or
-                z_err >= err_threshold)
+                err_mag = math.sqrt(pow(x_err, 2)+pow(y_err, 2)+pow(z_err, 2))
 
-            print('current pos: ({}, {}, {})'.format(x, y, z))
-            print('desired pos: ({}, {}, {})'.format(x_pos, y_pos, z_pos)) 
+                x_pos = x + (x_err > step) * x_err / err_mag * step + (x_err < step) * x_err
+                y_pos = y + (y_err > step) * y_err / err_mag * step + (y_err < step) * y_err
+                z_pos = z + (z_err > step) * z_err / err_mag * step + (z_err < step) * z_err
 
-            # cf.commander.send_velocity_world_setpoint(vel_x, vel_y, vel_z, 0) # uncomment for velocity mode OR
-            cf.commander.send_position_setpoint(x_pos, y_pos, z_pos, 0) # uncomment for setpoint mode. 
+                vel_x = (x_err <= 0.5) * x_err + (x_err > 0.5) * VELOCITY
+                vel_y = (y_err <= 0.5) * y_err + (y_err > 0.5) * VELOCITY
+                vel_z = (z_err <= 0.5) * z_err + (z_err > 0.5) * VELOCITY
 
-            time.sleep(0.1)
+                keep_flying = (x_err >= err_threshold or 
+                    y_err >= err_threshold or
+                    z_err >= err_threshold)
+
+                print('current pos: ({}, {}, {})'.format(x, y, z))
+                print('desired pos: ({}, {}, {})'.format(x_pos, y_pos, z_pos)) 
+
+                # cf.commander.send_velocity_world_setpoint(vel_x, vel_y, vel_z, 0) # uncomment for velocity mode OR
+                cf.commander.send_position_setpoint(x_pos, y_pos, z_pos, 0) # uncomment for setpoint mode. 
+
+                time.sleep(0.1)
+
+            
             
         cf.commander.send_zdistance_setpoint(x, y, .1, 0) #get close to ground before landing
         time.sleep(2)
