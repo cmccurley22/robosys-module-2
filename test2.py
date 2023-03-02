@@ -14,7 +14,7 @@ from cflib.utils import uri_helper
 import pos_estimator as es
 
 # URI to the Crazyflie to connect to
-uri = uri_helper.uri_from_env(default='radio://0/40/2M/E7E7E7E7E7')
+uri = uri_helper.uri_from_env(default='radio://0/30/2M/E7E7E7E7E7')
 
 # global data
 setpoint = [1.0, 0.5, 1.0, 0]
